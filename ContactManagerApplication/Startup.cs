@@ -31,7 +31,7 @@ namespace ContactManagerApplication
 			}
 			else
 			{
-				app.UseExceptionHandler("/Home/Error");
+				app.UseExceptionHandler("/Contacts/Error");
 				app.UseHsts();
 			}
 
@@ -45,7 +45,7 @@ namespace ContactManagerApplication
 			app.UseEndpoints(endpoints => {
 				endpoints.MapControllerRoute(
 					name: "default",
-					pattern: "{controller=Home}/{action=Index}/{id?}"
+					pattern: "{controller=Contacts}/{action=Index}/{id?}"
 				);
 			});
 		}

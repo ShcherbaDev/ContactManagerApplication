@@ -19,12 +19,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ContactManagerApplication.Controllers
 {
-	public class HomeController : Controller
+	public class ContactsController : Controller
 	{
-		private readonly ILogger<HomeController> _logger;
+		private readonly ILogger<ContactsController> _logger;
 		private readonly ContactContext _context;
 
-		public HomeController(ILogger<HomeController> logger, ContactContext context)
+		public ContactsController(ILogger<ContactsController> logger, ContactContext context)
 		{
 			_logger = logger;
 			_context = context;

@@ -184,7 +184,7 @@ else
                 let newValue = input.is(':checkbox') ? input.is(':checked') : input.val();
 
                 $.ajax({
-                    url: `/Home/Update/${contactId}`,
+                    url: `/Contacts/Update/${contactId}`,
                     type: 'patch',
                     contentType: 'application/json; charset=utf-8',
                     data: JSON.stringify([{ op: 'replace', path: `/${fieldName}`, value: newValue }]),
@@ -201,7 +201,7 @@ else
 
             function deleteContact(contactId, onSuccess, onFail) {
                 $.ajax({
-                    url: `/Home/Delete/${contactId}`,
+                    url: `/Contacts/Delete/${contactId}`,
                     type: 'delete',
                     success: onSuccess,
                     error: onFail
