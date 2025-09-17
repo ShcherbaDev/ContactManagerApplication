@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using ContactManagerApplication.Utilities;
 using CsvHelper.Configuration.Attributes;
 
 namespace ContactManagerApplication.Models
@@ -32,7 +34,6 @@ namespace ContactManagerApplication.Models
 		[Name("Salary")]
 		public decimal Salary { get; set; }
 
-
 		public static Contact ToContactMap(ContactDto contactDto)
 		{
 			return new Contact
@@ -40,7 +41,7 @@ namespace ContactManagerApplication.Models
 				Name = contactDto.Name,
 				BirthDate = contactDto.DateOfBirth,
 				IsMarried = contactDto.IsMarried,
-				Phone = contactDto.Phone,
+				Phone = contactDto.Phone.RemoveAllNonDigitSymbols(),
 				Salary = contactDto.Salary
 			};
 		}

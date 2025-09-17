@@ -17,17 +17,23 @@
             <th>Is Married</th>
             <th>Phone</th>
             <th>Salary</th>
+            <th>Actions</th>
         </tr>
         </thead>
         <tbody>
         @foreach (Contact contact in Model)
         {
-            <tr>
-                <td>@contact.Name</td>
-                <td>@contact.BirthDate.ToShortDateString()</td>
-                <td><input type="checkbox" checked="@contact.IsMarried"/></td>
-                <td>@contact.Phone</td>
-                <td>@contact.Salary</td>
+            <tr data-id="@contact.Id">
+                <td class="editable" data-field="@nameof(Contact.Name)">@contact.Name</td>
+                <td class="editable" data-field="@nameof(Contact.BirthDate)">@contact.BirthDate.ToShortDateString()</td>
+                <td data-field="@nameof(Contact.IsMarried)">
+                    <input type="checkbox" @(contact.IsMarried ? "checked" : "") />
+                </td>
+                <td class="editable" data-field="@nameof(Contact.Phone)">@contact.Phone</td>
+                <td class="editable" data-field="@nameof(Contact.Salary)">@contact.Salary</td>
+                <td>
+                    <button class="btn btn-danger btn-sm" id="delete-btn">Delete</button>
+                </td>
             </tr>
         }
         </tbody>
@@ -55,31 +61,154 @@ else
     <script src="~/lib/jquery-datatables/datatables.min.js"></script>
 
     <script>
-        $(document).ready(function() {
-           $('#contactsTable').DataTable({
-               paging: true,
-               searching: true,
-               ordering: true,
-               columnDefs: [
-                   {
-                       orderable: true,
-                       targets: '_all'
-                   }
-               ],
-               initComplete: function() {
-                   this.api().columns().every(function() {
-                       const column = this;
-                       const header = $(column.header());
-                       const input = $('<input type="text" placeholder="Filter..." class="form-control form-control-sm" />')
-                           .appendTo(header)
-                           .on('keyup change', function() {
-                               if (column.search() !== this.value) {
-                                   column.search(this.value).draw();
-                               }
-                           });
-                   });
-               }
-           });
+        const isMarriedColumnIndex = 2;
+        const actionsColumnIndex = 5;
+
+        $(document).ready(function () {
+            // Sorting and filtering
+            const table = $('#contactsTable').DataTable({
+                paging: true,
+                searching: true,
+                ordering: true,
+                columnDefs: [
+                    {
+                        targets: actionsColumnIndex,
+                        orderable: false,
+                    }
+                ],
+                initComplete: function () {
+                    this.api().columns().every(function (index) {
+                        const column = this;
+                        const header = $(column.header());
+
+                        if (index === isMarriedColumnIndex) {
+                            $(`<select class="form-control form-control-sm">
+                                <option value="">All</option>
+                                <option value="1">Married</option>
+                                <option value="0">Not Married</option>
+                            </select>`)
+                                .appendTo(header)
+                                .on('change', function () {
+                                    column.search(this.value).draw(); // TODO: does not work
+                                });
+                        }
+                        else if (index !== actionsColumnIndex) {
+                            $('<input type="text" placeholder="Filter..." class="form-control form-control-sm" />')
+                                .appendTo(header)
+                                .on('keyup change', function () {
+                                    if (column.search() !== this.value) {
+                                        column.search(this.value).draw();
+                                    }
+                                });
+                        }
+                    });
+                }
+            });
+
+            // Inline editing (except checkboxes)
+            $(document).on('click', '.editable', function () {
+                const that = $(this);
+
+                // Don't do anything if already in inline edit mode
+                if (that.find('input').length > 0) {
+                    return;
+                }
+
+                const field = that.data('field');
+                const currentValue = that.text().trim();
+
+                switch (field) {
+                    case '@nameof(Contact.Name)':
+                        that.html(`<input type="text" value="${currentValue}" />`);
+                        break;
+                    case '@nameof(Contact.BirthDate)':
+                        // dd.mm.yyyy to yyyy-mm-dd
+                        const properDateFormat = currentValue.split('.').reverse().join('-');
+                        that.html(`<input type="date" value="${properDateFormat}" />`);
+                        break;
+                    case '@nameof(Contact.Phone)':
+                        that.html('<input type="tel" value="${currentValue}" />');
+                        break;
+                    case '@nameof(Contact.Salary)':
+                        that.html(`<input type="number" step="0.01" value="${currentValue}" />`)
+                        break;
+                }
+
+                that.find('input').focus().on('blur', function () {
+                    const input = $(this);
+                    const newValue = input.val();
+                    updateContact(
+                        input,
+                        function() {
+                            if (input.is('[type="date"]')) {
+                                // Convert yyyy-mm-dd to dd-mm-yyyy
+                                that.text(newValue.split('-').reverse().join('.'));
+                            }
+                            else {
+                                that.text(newValue);
+                            }
+                        },
+                        function() { that.text(currentValue); }
+                    );
+                });
+            });
+
+            // Changing boolean properties
+            $(document).on('change', 'input[type=checkbox]', function() {
+                const that = $(this);
+                updateContact(
+                    that,
+                    function() { },
+                    function() { that.prop('checked', !that.is(':checked')); }
+                );
+            });
+
+            // Delete button
+            $(document).on('click', '#delete-btn', function () {
+                if (!confirm('Are you sure you want to delete this contact?')) {
+                    return;
+                }
+
+                const row = $(this).closest('tr');
+                deleteContact(
+                    row.data('id'),
+                    function() { table.row(row).remove().draw() },
+                    function() { alert('Error deleting contact') }
+                )
+            });
+
+            function updateContact(input, onSuccess, onFail) {
+                const row = input.closest('tr');
+                const cell = input.closest('td');
+
+                const contactId = row.data('id');
+                const fieldName = cell.data('field');
+                let newValue = input.is(':checkbox') ? input.is(':checked') : input.val();
+
+                $.ajax({
+                    url: `/Home/Update/${contactId}`,
+                    type: 'patch',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify([{ op: 'replace', path: `/${fieldName}`, value: newValue }]),
+                    success: function () {
+                        console.log('Changes saved');
+                        onSuccess();
+                    },
+                    error: function () {
+                        alert('Error saving changes');
+                        onFail();
+                    }
+                });
+            }
+
+            function deleteContact(contactId, onSuccess, onFail) {
+                $.ajax({
+                    url: `/Home/Delete/${contactId}`,
+                    type: 'delete',
+                    success: onSuccess,
+                    error: onFail
+                });
+            }
         });
     </script>
 }

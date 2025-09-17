@@ -19,7 +19,7 @@ namespace ContactManagerApplication
 
 		public void ConfigureServices(IServiceCollection services)
 		{
-			services.AddControllersWithViews();
+			services.AddControllersWithViews().AddNewtonsoftJson();
 			services.AddDbContext<ContactContext>(options => options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
 		}
 

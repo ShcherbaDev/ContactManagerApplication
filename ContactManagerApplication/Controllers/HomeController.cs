@@ -10,8 +10,11 @@ using ContactManagerApplication.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using ContactManagerApplication.Models;
+using ContactManagerApplication.Utilities;
 using CsvHelper;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.AspNetCore.JsonPatch.Operations;
 using Microsoft.EntityFrameworkCore;
 
 namespace ContactManagerApplication.Controllers
@@ -56,6 +59,67 @@ namespace ContactManagerApplication.Controllers
 			{
 				_logger.LogError(ex, "Error processing CSV file");
 				return BadRequest("Error processing CSV file");
+			}
+		}
+
+		[HttpPatch]
+		public async Task<IActionResult> Update(int id, [FromBody] JsonPatchDocument<Contact> patch, CancellationToken cancellationToken)
+		{
+			if (patch == null || patch.Operations.Count == 0)
+			{
+				return BadRequest("Invalid patch content");
+			}
+
+			Contact contact = await _context.Contacts.FindAsync(new object[] { id }, cancellationToken);
+			if (contact == null)
+			{
+				return NotFound();
+			}
+
+			try
+			{
+				patch.ApplyTo(contact, ModelState);
+
+				if (!ModelState.IsValid)
+				{
+					return BadRequest(ModelState);
+				}
+
+				foreach (Operation<Contact> _ in patch.Operations.Where(operation => operation.path.Equals("/Phone", StringComparison.OrdinalIgnoreCase)))
+				{
+					contact.Phone = contact.Phone.RemoveAllNonDigitSymbols();
+				}
+
+				contact.ModifiedDate = DateTime.UtcNow;
+				await _context.SaveChangesAsync(cancellationToken);
+				return NoContent();
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error updating contact");
+				return BadRequest("Error updating contact");
+			}
+		}
+
+		[HttpDelete]
+		public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+		{
+			Contact contact = await _context.Contacts.FindAsync(new object[] { id }, cancellationToken);
+			if (contact == null)
+			{
+				return NotFound();
+			}
+
+			try
+			{
+				_context.Contacts.Remove(contact);
+				await _context.SaveChangesAsync(cancellationToken);
+				return NoContent();
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error deleting a contact");
+				return BadRequest("Error deleting a contact");
 			}
 		}
 
