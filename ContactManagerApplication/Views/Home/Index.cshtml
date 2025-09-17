@@ -65,7 +65,20 @@ else
                        orderable: true,
                        targets: '_all'
                    }
-               ]
+               ],
+               initComplete: function() {
+                   this.api().columns().every(function() {
+                       const column = this;
+                       const header = $(column.header());
+                       const input = $('<input type="text" placeholder="Filter..." class="form-control form-control-sm" />')
+                           .appendTo(header)
+                           .on('keyup change', function() {
+                               if (column.search() !== this.value) {
+                                   column.search(this.value).draw();
+                               }
+                           });
+                   });
+               }
            });
         });
     </script>
