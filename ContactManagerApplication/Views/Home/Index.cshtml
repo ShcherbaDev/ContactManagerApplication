@@ -26,8 +26,8 @@
             <tr data-id="@contact.Id">
                 <td class="editable" data-field="@nameof(Contact.Name)">@contact.Name</td>
                 <td class="editable" data-field="@nameof(Contact.BirthDate)">@contact.BirthDate.ToShortDateString()</td>
-                <td data-field="@nameof(Contact.IsMarried)">
-                    <input type="checkbox" @(contact.IsMarried ? "checked" : "") />
+                <td class="editable" data-field="@nameof(Contact.IsMarried)">
+                    @(contact.IsMarried ? "Yes" : "No")
                 </td>
                 <td class="editable" data-field="@nameof(Contact.Phone)">@contact.Phone</td>
                 <td class="editable" data-field="@nameof(Contact.Salary)">@contact.Salary</td>
@@ -84,12 +84,12 @@ else
                         if (index === isMarriedColumnIndex) {
                             $(`<select class="form-control form-control-sm">
                                 <option value="">All</option>
-                                <option value="1">Married</option>
-                                <option value="0">Not Married</option>
+                                <option value="Yes">Married</option>
+                                <option value="No">Not Married</option>
                             </select>`)
                                 .appendTo(header)
                                 .on('change', function () {
-                                    column.search(this.value).draw(); // TODO: does not work
+                                    column.search(this.value, false, false).draw();
                                 });
                         }
                         else if (index !== actionsColumnIndex) {
@@ -105,11 +105,11 @@ else
                 }
             });
 
-            // Inline editing (except checkboxes)
+            // Inline editing
             $(document).on('click', '.editable', function () {
                 const that = $(this);
 
-                // Don't do anything if already in inline edit mode
+                // Don't edit if already in inline edit mode
                 if (that.find('input').length > 0) {
                     return;
                 }
@@ -126,8 +126,12 @@ else
                         const properDateFormat = currentValue.split('.').reverse().join('-');
                         that.html(`<input type="date" value="${properDateFormat}" />`);
                         break;
+                    case '@nameof(Contact.IsMarried)':
+                        const isChecked = currentValue === 'Yes';
+                        that.html(`<input type="checkbox" ${isChecked ? 'checked' : ''} />`);
+                        break;
                     case '@nameof(Contact.Phone)':
-                        that.html('<input type="tel" value="${currentValue}" />');
+                        that.html(`<input type="tel" value="${currentValue}" />`);
                         break;
                     case '@nameof(Contact.Salary)':
                         that.html(`<input type="number" step="0.01" value="${currentValue}" />`)
@@ -136,31 +140,26 @@ else
 
                 that.find('input').focus().on('blur', function () {
                     const input = $(this);
-                    const newValue = input.val();
+                    const newValue = input.is(':checkbox') ? input.is(':checked') : input.val();
                     updateContact(
                         input,
-                        function() {
+                        function () {
                             if (input.is('[type="date"]')) {
                                 // Convert yyyy-mm-dd to dd-mm-yyyy
                                 that.text(newValue.split('-').reverse().join('.'));
+                            }
+                            else if (input.is(':checkbox')) {
+                                that.text(newValue ? 'Yes' : 'No');
                             }
                             else {
                                 that.text(newValue);
                             }
                         },
-                        function() { that.text(currentValue); }
+                        function () {
+                            that.text(currentValue);
+                        }
                     );
                 });
-            });
-
-            // Changing boolean properties
-            $(document).on('change', 'input[type=checkbox]', function() {
-                const that = $(this);
-                updateContact(
-                    that,
-                    function() { },
-                    function() { that.prop('checked', !that.is(':checked')); }
-                );
             });
 
             // Delete button
@@ -172,8 +171,12 @@ else
                 const row = $(this).closest('tr');
                 deleteContact(
                     row.data('id'),
-                    function() { table.row(row).remove().draw() },
-                    function() { alert('Error deleting contact') }
+                    function () {
+                        table.row(row).remove().draw()
+                    },
+                    function () {
+                        alert('Error deleting contact')
+                    }
                 )
             });
 
